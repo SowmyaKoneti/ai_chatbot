@@ -61,6 +61,14 @@ export default function Home() {
     });
   };
 
+  //onclick enter
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
   return (
     <Box
       width="100vw"
@@ -121,6 +129,7 @@ export default function Home() {
             variant="outlined"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Type your message..."
           />
           <Button
