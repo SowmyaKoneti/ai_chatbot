@@ -1,13 +1,15 @@
 'use client'
-import { Box, Stack, Typography, TextField, Button } from "@mui/material";
+import { Box, Stack, Typography, TextField, Button, IconButton } from "@mui/material";
+import { ThumbUp, ThumbDown } from "@mui/icons-material";
 import { useRef, useState, useEffect } from "react";
 
 export default function Home() {
   const [messages, setMessages] = useState([{
     role: 'assistant',
-    content: 'Hi I am your personal chatbot'
-  },])
-  const [message, setMessage] = useState('')
+    content: 'Hi there! I’m your personal chatbot. Feel free to ask me about the products you’ve seen on TikTok or anything else you need help with.',
+    feedback: null,
+  }]);
+  const [message, setMessage] = useState('');
 
   const chatContainerRef = useRef(null);
 
@@ -19,23 +21,30 @@ export default function Home() {
     }
   }, [messages]);
 
-  // handlesend
   const sendMessage = async () => {
-    if (message.trim() === '') return; // Prevent sending empty messages
+    if (message.trim() === '') return;
 
     setMessage('');
     setMessages((messages) => [
       ...messages,
       { role: 'user', content: message },
-      { role: 'assistant', content: '' },
+      { role: 'assistant', content: '', feedback: null },
     ]);
+
+    const filteredMessages = messages.map((msg) => {
+      if (msg.role === 'assistant') {
+        const { feedback, ...rest } = msg;
+        return rest;
+      }
+      return msg;
+    });
 
     const response = await fetch('/api/chat', {
       method: "POST",
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify([...messages, { role: 'user', content: message }]),
+      body: JSON.stringify([...filteredMessages, { role: 'user', content: message }]),
     }).then(async (res) => {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -53,6 +62,7 @@ export default function Home() {
             {
               ...lastMessage,
               content: lastMessage.content + text,
+              feedback: null
             },
           ];
         });
@@ -61,22 +71,34 @@ export default function Home() {
     });
   };
 
-  //onclick enter
+  const handleFeedback = (index, feedback) => {
+    setMessages((messages) => {
+      let updatedMessages = [...messages];
+      updatedMessages[index].feedback = feedback;
+      return updatedMessages;
+    });
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       sendMessage();
     }
-  };
-
-  return (
+  }; return (
     <Box
       width="100vw"
       height="100vh"
       display="flex"
       flexDirection="column"
       justifyContent="center"
-      alignItems="center"
+      alignItems="flex-start"
+      sx={{
+        backgroundImage: `url('/image.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        paddingLeft: '100px',
+      }}
     >
       <Stack
         direction="column"
@@ -85,7 +107,16 @@ export default function Home() {
         border="1px solid black"
         p={2}
         spacing={3}
+        sx={{
+          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+          borderRadius: '8px',
+          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+        }}
       >
+        <Typography variant="h5" component="h1" textAlign="center" gutterBottom>
+          Ask me!!
+        </Typography>
+
         <Stack
           direction="column"
           flexGrow={1}
@@ -98,11 +129,11 @@ export default function Home() {
               width: '8px',
             },
             "&::-webkit-scrollbar-thumb": {
-              backgroundColor: 'rgba(0,0,0,0.2)', //thumb
+              backgroundColor: 'rgba(0,0,0,0.2)',
               borderRadius: '4px',
             },
             "&::-webkit-scrollbar-track": {
-              backgroundColor: '#ffffff', // track 
+              backgroundColor: '#ffffff',
             },
             paddingRight: '12px',
           }}
@@ -111,19 +142,51 @@ export default function Home() {
             <Box
               key={index}
               display="flex"
-              justifyContent={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
+              flexDirection="column"
+              alignItems={message.role === 'assistant' ? 'flex-start' : 'flex-end'}
             >
-              <Typography
-                bgcolor={message.role === 'assistant' ? 'lightblue' : 'lightgreen'}
-                p={2}
-                borderRadius={6}
-              >
-                {message.content}
-              </Typography>
+              <Box position="relative" display="inline-block">
+                <Typography
+                  bgcolor={message.role === 'assistant' ? 'lightblue' : 'lightgreen'}
+                  p={1.5}
+                  pr={6}
+                  borderRadius={4}
+                  maxWidth="350px"
+                  sx={{ wordBreak: 'break-word' }}
+                >
+                  {message.content}
+                </Typography>
+                {message.role === 'assistant' && (
+                  <Box
+                    position="absolute"
+                    bottom="4px"
+                    right="4px"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <IconButton
+                      color={message.feedback === 'positive' ? 'primary' : 'default'}
+                      onClick={() => handleFeedback(index, 'positive')}
+                      size="small"
+                    >
+                      <ThumbUp fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      color={message.feedback === 'negative' ? 'error' : 'default'}
+                      onClick={() => handleFeedback(index, 'negative')}
+                      size="small"
+                    >
+                      <ThumbDown fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
             </Box>
           ))}
         </Stack>
-        <Stack direction="row" spacing={2} alignItems="center" p={0}>
+
+        <Stack direction="row" spacing={1} alignItems="center">
           <TextField
             fullWidth
             variant="outlined"
@@ -131,11 +194,31 @@ export default function Home() {
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: '#ccc',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#aaa',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#263896',
+                },
+              },
+            }}
           />
           <Button
             variant="contained"
             color="primary"
             onClick={sendMessage}
+            sx={{
+              backgroundColor: '#263896',
+              color: '#ffffff',
+              '&:hover': {
+                backgroundColor: '#0056b3',
+              },
+            }}
           >
             Send
           </Button>
@@ -143,4 +226,4 @@ export default function Home() {
       </Stack>
     </Box>
   );
-}
+}  
